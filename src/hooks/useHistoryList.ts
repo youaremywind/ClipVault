@@ -1,6 +1,5 @@
 import { useReactive } from "ahooks";
 import { isString } from "es-toolkit";
-import { unionBy } from "es-toolkit/compat";
 import { useContext, useEffect } from "react";
 import { LISTEN_KEY } from "@/constants";
 import { selectHistory } from "@/database/history";
@@ -8,6 +7,7 @@ import { selectHistoryByTagId } from "@/database/tag";
 import { MainContext } from "@/pages/Main";
 import { tagStore } from "@/stores/tag";
 import { isBlank } from "@/utils/is";
+import { mergeHistoryList } from "./historyListMerge";
 import { useTauriListen } from "./useTauriListen";
 
 interface Options {
@@ -82,27 +82,14 @@ export const useHistoryList = (options: Options) => {
       state.noMore = list.length === 0;
 
       if (page === 1) {
-        // 合并时优先保留内存中的数据（新添加的），但确保新查询的数据也包含
-        // 使用 reverse + unionBy 确保新数据在前
-        const merged = unionBy(rootState.list, list, "id");
-        // 按创建时间排序（最新的在前）
-        merged.sort(
-          (a, b) =>
-            new Date(b.createTime).getTime() - new Date(a.createTime).getTime(),
-        );
-        rootState.list = merged;
+        rootState.list = mergeHistoryList(rootState.list, list, page);
 
         if (state.noMore) return;
 
         return scrollToTop();
       }
 
-      const merged = unionBy(rootState.list, list, "id");
-      merged.sort(
-        (a, b) =>
-          new Date(b.createTime).getTime() - new Date(a.createTime).getTime(),
-      );
-      rootState.list = merged;
+      rootState.list = mergeHistoryList(rootState.list, list, page);
     } finally {
       state.loading = false;
     }
